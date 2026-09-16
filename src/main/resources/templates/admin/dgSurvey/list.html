@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('断面测深记录')"/>
+</head>
+<body class="pear-container">
+<div class="layui-card">
+    <div class="layui-card-body">
+        <form class="layui-form" action="">
+            <div class="layui-form-item">
+                <label class="layui-form-label">测量单号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="surveyNo" placeholder="" class="layui-input">
+                </div>
+
+                <label class="layui-form-label">河段编号</label>
+                <div class="layui-input-inline">
+                    <input type="text" name="reachCode" placeholder="" class="layui-input">
+                </div>
+                <button class="pear-btn pear-btn-md pear-btn-primary" lay-submit lay-filter="dgSurvey-query">
+                    <i class="layui-icon layui-icon-search"></i>
+                    查询
+                </button>
+                <button type="reset" class="pear-btn pear-btn-md">
+                    <i class="layui-icon layui-icon-refresh"></i>
+                    重置
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="layui-card">
+    <div class="layui-card-body">
+        <table id="dgSurvey-table" lay-filter="dgSurvey-table"></table>
+    </div>
+</div>
+</body>
+
+<script type="text/html" id="dgSurvey-toolbar">
+    <button shiro:hasPermission="dredge:dgSurvey:add" class="pear-btn pear-btn-primary pear-btn-md" lay-event="add">
+        <i class="layui-icon layui-icon-add-1"></i>
+        新增
+    </button>
+    <button shiro:hasPermission="dredge:dgSurvey:remove" class="pear-btn pear-btn-danger pear-btn-md" lay-event="batchRemove">
+        <i class="layui-icon layui-icon-delete"></i>
+        删除
+    </button>
+</script>
+
+<script type="text/html" id="dgSurvey-bar">
+    {{# if (d.surveyStatus == 0) { }}
+    <button shiro:hasPermission="dredge:dgSurvey:review" class="pear-btn pear-btn-warming pear-btn-sm" lay-event="review" title="复核"><i class="layui-icon layui-icon-ok"></i>
+    </button>
+    <button shiro:hasPermission="dredge:dgSurvey:edit" class="pear-btn pear-btn-primary pear-btn-sm" lay-event="edit" title="修改"><i class="layui-icon layui-icon-edit"></i>
+    </button>
+    <button shiro:hasPermission="dredge:dgSurvey:remove" class="pear-btn pear-btn-danger pear-btn-sm" lay-event="remove" title="删除"><i class="layui-icon layui-icon-delete"></i>
+    </button>
+    {{# } }}
+</script>
+
+<script type="text/html" id="dgSurvey-level">
+    {{# if (d.shoalLevel == 1) { }}
+    <span class="layui-badge layui-bg-green">良好</span>
+    {{# } else if (d.shoalLevel == 2) { }}
+    <span class="layui-badge layui-bg-blue">一般</span>
+    {{# } else if (d.shoalLevel == 3) { }}
+    <span class="layui-badge layui-bg-orange">紧张</span>
+    {{# } else if (d.shoalLevel == 4) { }}
+    <span class="layui-badge layui-bg-red">告急</span>
+    {{# } }}
+</script>
+
+<script type="text/html" id="dgSurvey-status">
+    {{# if (d.surveyStatus == 1) { }}
+    <span class="layui-badge layui-bg-green">已复核</span>
+    {{# } else { }}
+    <span class="layui-badge layui-bg-orange">待复核</span>
+    {{# } }}
+</script>
+
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['table', 'form', 'jquery'], function () {
+        let table = layui.table;
+        let form = layui.form;
+        let $ = layui.jquery;
+
+        let MODULE_PATH = rootPath+"/DgSurveyController/";
+        let cols = [
+            [
+                 {type: 'checkbox'},
+                {title: 'ID', field: 'id', align: 'center', hide: true},
+                {title: '测量单号', field: 'surveyNo', align: 'left'},
+                {title: '河段编号', field: 'reachCode', align: 'left'},
+                {title: '判定规则', field: 'ruleCode', align: 'left'},
+                {title: '浅点率(%)', field: 'shoalRate', align: 'center'},
+                {title: '浅情等级', field: 'shoalLevel', align: 'center', toolbar: '#dgSurvey-level'},
+                {title: '测量日期', field: 'surveyDate', align: 'center'},
+                {title: '测量人', field: 'surveyBy', align: 'center'},
+                {title: '复核状态', field: 'surveyStatus', align: 'center', toolbar: '#dgSurvey-status'},
+                {title: '创建时间', field: 'createTime', align: 'center'},
+                {title: '操作', toolbar: '#dgSurvey-bar', align: 'center'}
+            ]
+        ]
+
+        //table表单列表
+        table.render({
+            elem: '#dgSurvey-table',
+            url: MODULE_PATH + 'list',
+            page: true,
+            method: 'get',
+            cols: cols,
+            skin: 'line',
+            toolbar: '#dgSurvey-toolbar',
+            defaultToolbar: [{
+                layEvent: 'refresh',
+                icon: 'layui-icon-refresh',
+            }, 'filter', 'print', 'exports'],
+            where: {
+                orderByColumn: "id",
+                isAsc: "desc"
+            }
+        });
+
+        //table图标事件绑定
+        table.on('tool(dgSurvey-table)', function (obj) {
+            if (obj.event === 'remove') {
+                window.remove(obj);
+            } else if (obj.event === 'edit') {
+                window.edit(obj);
+            } else if (obj.event === 'review') {
+                window.review(obj);
+            }
+        });
+
+        //table工具栏绑定
+        table.on('toolbar(dgSurvey-table)', function (obj) {
+            if (obj.event === 'add') {
+                window.add();
+            } else if (obj.event === 'refresh') {
+                window.refresh();
+            } else if (obj.event === 'batchRemove') {
+                window.batchRemove(obj);
+            }
+        });
+
+        //查询按钮绑定
+        form.on('submit(dgSurvey-query)', function (data) {
+            table.reload('dgSurvey-table', {where: data.field})
+            return false;
+        });
+
+
+        //添加
+        window.add = function () {
+            layer.open({
+                type: 2,
+                title: '新增',
+                shade: 0.1,
+                area: ['500px', '600px'],
+                content: MODULE_PATH + 'add'
+            });
+        }
+        //修改
+        window.edit = function (obj) {
+            layer.open({
+                type: 2,
+                title: '修改',
+                shade: 0.1,
+                area: ['500px', '600px'],
+                content: MODULE_PATH + 'edit/' + obj.data['id']
+            });
+        }
+
+        //复核
+        window.review = function (obj) {
+            layer.confirm('确定复核通过测量单[' + obj.data['surveyNo'] + ']？复核后不可再修改', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "review?id=" + obj.data['id'],
+                    dataType: 'json',
+                    type: 'post',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('dgSurvey-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+
+        //删除
+        window.remove = function (obj) {
+            layer.confirm('确定要删除该测量单', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "remove?ids=" + obj.data['id'],
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                obj.del();
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+
+        //批量删除
+        window.batchRemove = function (obj) {
+            let data = table.checkStatus(obj.config.id).data;
+            if (data.length === 0) {
+                layer.msg("未选中数据", {icon: 3, time: 1000});
+                return false;
+            }
+            let ids = "";
+            for (let i = 0; i < data.length; i++) {
+                ids += data[i].id + ",";
+            }
+            ids = ids.substr(0, ids.length - 1);
+            layer.confirm('确定要删除这些测量单', {icon: 3, title: '提示'}, function (index) {
+                layer.close(index);
+                let loading = layer.load();
+                $.ajax({
+                    url: MODULE_PATH + "remove?ids=" + ids,
+                    dataType: 'json',
+                    type: 'delete',
+                    success: function (result) {
+                        layer.close(loading);
+                        if (result.code==200) {
+                            layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                                table.reload('dgSurvey-table');
+                            });
+                        } else {
+                            layer.msg(result.msg, {icon: 2, time: 1000});
+                        }
+                    }
+                })
+            });
+        }
+        //刷新按钮
+        window.refresh = function () {
+            table.reload('dgSurvey-table');
+        }
+    })
+</script>
+</html>

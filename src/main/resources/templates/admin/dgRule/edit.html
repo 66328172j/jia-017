@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <th:block th:include="include :: header('判定规则修改')"/>
+</head>
+<body>
+<form class="layui-form" action="" th:object="${DgRule}">
+    <div class="mainBox">
+        <div class="main-container">
+            <div class="main-container">
+
+                <div class="layui-form-item layui-hide">
+                    <label class="layui-form-label">编号</label>
+                    <div class="layui-input-block">
+                        <input type="text" th:value="*{id}" name="id" autocomplete="off" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">规则编号</label>
+                    <div class="layui-input-block">
+                        <input th:value="*{ruleCode}" type="text" name="ruleCode" lay-verify="required" autocomplete="off" placeholder="规则编号" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">规则名称</label>
+                    <div class="layui-input-block">
+                        <input th:value="*{ruleName}" type="text" name="ruleName" lay-verify="required" autocomplete="off" placeholder="规则名称" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">良好档上限(%)</label>
+                    <div class="layui-input-block">
+                        <input th:value="*{dev1Max}" type="number" step="0.01" min="0" max="100" name="dev1Max" lay-verify="required|number" autocomplete="off" placeholder="浅点率不超过该值为良好" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">一般档上限(%)</label>
+                    <div class="layui-input-block">
+                        <input th:value="*{dev2Max}" type="number" step="0.01" min="0" max="100" name="dev2Max" lay-verify="required|number" autocomplete="off" placeholder="浅点率不超过该值为一般" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">紧张档上限(%)</label>
+                    <div class="layui-input-block">
+                        <input th:value="*{dev3Max}" type="number" step="0.01" min="0" max="100" name="dev3Max" lay-verify="required|number" autocomplete="off" placeholder="浅点率不超过该值为紧张，超过即为告急" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">状态</label>
+                    <div class="layui-input-block">
+                        <select name="status" id="status" th:field="*{status}">
+                            <option value="0">启用</option>
+                            <option value="1">停用</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">备注</label>
+                    <div class="layui-input-block">
+                        <textarea placeholder="请输入备注" name="remark" class="layui-textarea" th:text="*{remark}"></textarea>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+    <div class="bottom">
+        <div class="button-container">
+            <button type="submit" class="layui-btn layui-btn-normal layui-btn-sm" lay-submit="" lay-filter="dgRule-update">
+                <i class="layui-icon layui-icon-ok"></i>
+                提交
+            </button>
+            <button type="reset" class="layui-btn layui-btn-primary layui-btn-sm">
+                <i class="layui-icon layui-icon-refresh"></i>
+                重置
+            </button>
+        </div>
+    </div>
+</form>
+<th:block th:include="include :: footer"/>
+<script>
+    layui.use(['form', 'jquery'], function () {
+        let form = layui.form;
+        let $ = layui.jquery;
+        let MODULE_PATH = rootPath+"/DgRuleController";
+
+        //修改保存
+        form.on('submit(dgRule-update)', function (data) {
+            let dev1 = parseFloat(data.field.dev1Max);
+            let dev2 = parseFloat(data.field.dev2Max);
+            let dev3 = parseFloat(data.field.dev3Max);
+            if (!(dev1 < dev2 && dev2 < dev3)) {
+                layer.msg('三条分界线必须满足：良好档上限 < 一般档上限 < 紧张档上限', {icon: 2, time: 2000});
+                return false;
+            }
+            $.ajax({
+                url: MODULE_PATH+'/edit',
+                data: data.field,
+                dataType: 'json',
+                contentType: 'application/x-www-form-urlencoded',
+                type: 'post',
+                success: function (result) {
+                    if (result.code==200) {
+                        layer.msg(result.msg, {icon: 1, time: 1000}, function () {
+                            parent.layer.close(parent.layer.getFrameIndex(window.name));//关闭当前页
+                            parent.layui.table.reload("dgRule-table");
+                        });
+                    } else {
+                        layer.msg(result.msg, {icon: 2, time: 1000});
+                    }
+                }
+            })
+            return false;
+        });
+    })
+</script>
+</body>
+</html>

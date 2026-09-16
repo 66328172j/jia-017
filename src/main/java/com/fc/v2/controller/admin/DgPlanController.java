@@ -7,6 +7,8 @@ import com.fc.v2.common.domain.ResultTable;
 import com.fc.v2.common.log.Log;
 import com.fc.v2.model.auto.TDgPlan;
 import com.fc.v2.service.ITDgPlanService;
+import com.fc.v2.util.StringUtils;
+import com.github.pagehelper.PageInfo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
@@ -45,10 +47,19 @@ public class DgPlanController extends BaseController {
     @ResponseBody
     public ResultTable list(TDgPlan record) {
         QueryWrapper<TDgPlan> queryWrapper = new QueryWrapper<TDgPlan>();
+        queryWrapper.like(StringUtils.isNotEmpty(record.getDredgeNo()), "dredge_no", record.getDredgeNo());
+        queryWrapper.like(StringUtils.isNotEmpty(record.getReachCode()), "reach_code", record.getReachCode());
+        queryWrapper.eq("del_flag", 0);
         startPage();
-        com.github.pagehelper.PageInfo<TDgPlan> page =
-                new com.github.pagehelper.PageInfo<TDgPlan>(dgPlanService.selectTDgPlanList(queryWrapper));
+        PageInfo<TDgPlan> page = new PageInfo<TDgPlan>(dgPlanService.selectTDgPlanList(queryWrapper));
         return pageTable(page.getList(), page.getTotal());
+    }
+
+    @ApiOperation(value = "新增跳转", notes = "新增跳转")
+    @GetMapping("/add")
+    public String add(ModelMap modelMap) {
+        modelMap.put("reaches", dgPlanService.selectReachOptions());
+        return prefix + "/add";
     }
 
     @Log(title = "疏浚计划单新增", action = "add")
@@ -57,7 +68,16 @@ public class DgPlanController extends BaseController {
     @RequiresPermissions("dredge:dgPlan:add")
     @ResponseBody
     public AjaxResult add(TDgPlan record) {
-        return toAjax(dgPlanService.insertTDgPlan(record));
+        int rows = dgPlanService.insertTDgPlan(record);
+        return rows > 0 ? success() : error("登记失败：请核对必填项、计划/完成方量与河段档案是否有效");
+    }
+
+    @ApiOperation(value = "修改跳转", notes = "修改跳转")
+    @GetMapping("/edit/{id}")
+    public String edit(@PathVariable("id") Long id, ModelMap mmap) {
+        mmap.put("DgPlan", dgPlanService.selectTDgPlanById(id));
+        mmap.put("reaches", dgPlanService.selectReachOptions());
+        return prefix + "/edit";
     }
 
     @Log(title = "疏浚计划单修改", action = "edit")
@@ -66,7 +86,18 @@ public class DgPlanController extends BaseController {
     @RequiresPermissions("dredge:dgPlan:edit")
     @ResponseBody
     public AjaxResult editSave(TDgPlan record) {
-        return toAjax(dgPlanService.updateTDgPlan(record));
+        int rows = dgPlanService.updateTDgPlan(record);
+        return rows > 0 ? success() : error("保存失败：计划单已归档，或方量、河段档案无效");
+    }
+
+    @Log(title = "疏浚计划单归档", action = "archive")
+    @ApiOperation(value = "归档", notes = "归档")
+    @PostMapping("/archive")
+    @RequiresPermissions("dredge:dgPlan:archive")
+    @ResponseBody
+    public AjaxResult archive(Long id) {
+        int rows = dgPlanService.archiveTDgPlan(id);
+        return rows > 0 ? success() : error("归档失败：计划单不存在或已归档");
     }
 
     @Log(title = "疏浚计划单删除", action = "remove")
@@ -75,6 +106,7 @@ public class DgPlanController extends BaseController {
     @RequiresPermissions("dredge:dgPlan:remove")
     @ResponseBody
     public AjaxResult remove(String ids) {
-        return toAjax(dgPlanService.deleteTDgPlanByIds(ids));
+        int rows = dgPlanService.deleteTDgPlanByIds(ids);
+        return rows > 0 ? success() : error("删除失败：已归档计划单不允许删除");
     }
 }
